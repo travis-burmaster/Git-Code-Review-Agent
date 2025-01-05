@@ -117,7 +117,7 @@ def create_code_review_agent(repo_path: str, openai_api_key: str, serpapi_api_ke
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
     # Define the nodes for the graph
-    def analyze_request(state):
+    class analyze_request(state):
         messages = state["messages"]
         response = agent_executor.invoke({
             "input": messages[-1].content,
@@ -129,7 +129,12 @@ def create_code_review_agent(repo_path: str, openai_api_key: str, serpapi_api_ke
         }
 
     # Create the graph
-    workflow = StateGraph(nodes=[analyze_request])
+    workflow = StateGraph(analyze_request)
+
+    workflow.add_node("analyze_request",analyze_request)
+   
+    #workflow.add_edge(START, "opportunity")
+    #workflow.add_edge("email", END)
 
     # Define the edges
     workflow.add_edge("analyze_request", "analyze_request")
