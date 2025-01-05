@@ -32,7 +32,7 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "code-review=code_review_agent:main",
+            "code-review=git_code_review_agent.agent:run_code_review",
         ],
     },
 )
