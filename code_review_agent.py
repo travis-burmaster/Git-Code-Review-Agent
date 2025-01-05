@@ -3,15 +3,11 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import Graph, StateGraph
 from langchain_openai import ChatOpenAI
 from langchain.tools import Tool
-from langchain_community.utilities import SerpAPIWrapper
+from langchain_community.tools.serpapi import SerpAPIWrapper
 from langchain.agents import AgentExecutor, create_openai_functions_agent
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder, HumanMessagePromptTemplate
 import subprocess
-from dotenv import load_dotenv
 import os
-
-load_dotenv()
-
 
 class GitTools:
     def __init__(self, repo_path: str):
@@ -105,9 +101,11 @@ def create_code_review_agent(repo_path: str, openai_api_key: str, serpapi_api_ke
         4. Search for solutions if needed
         5. Implement fixes
         6. Verify changes
-        7. Provide a summary of actions taken"""),
+        7. Provide a summary of actions taken
+
+        {agent_scratchpad}"""),
         MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{input}"),
+        ("human", "{input}")
     ])
 
     # Create the agent
@@ -120,7 +118,8 @@ def create_code_review_agent(repo_path: str, openai_api_key: str, serpapi_api_ke
         messages = state["messages"]
         response = agent_executor.invoke({
             "input": messages[-1].content,
-            "chat_history": messages[:-1]
+            "chat_history": messages[:-1],
+            "agent_scratchpad": ""
         })
         return {
             "messages": messages + [AIMessage(content=response["output"])]
@@ -179,11 +178,11 @@ def run_code_review(
 # Example usage
 if __name__ == "__main__":
     # Replace with your actual API keys and repository path
-    REPO_PATH = "./"
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
+    REPO_PATH = "/path/to/your/repo"
+    OPENAI_API_KEY = "your-openai-api-key"
+    SERPAPI_API_KEY = "your-serpapi-api-key"
     
-    user_input = input("Please review the code:")
+    user_input = "Please review the code in src/main.py and fix any performance issues"
     
     messages = run_code_review(
         user_input=user_input,
