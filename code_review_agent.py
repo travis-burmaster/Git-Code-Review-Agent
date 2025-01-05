@@ -5,6 +5,7 @@ from langchain_openai import ChatOpenAI
 from langchain.tools import Tool
 from langchain_community.tools.serpapi import SerpAPIWrapper
 from langchain.agents import AgentExecutor, create_openai_functions_agent
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 import subprocess
 import os
 
@@ -83,23 +84,30 @@ def create_code_review_agent(repo_path: str, openai_api_key: str, serpapi_api_ke
         api_key=openai_api_key
     )
 
-    # Create the agent
-    agent = create_openai_functions_agent(llm, tools, """You are an expert code reviewer and fixer. 
-    Your task is to:
-    1. Review code in the git repository
-    2. Identify issues and potential improvements
-    3. Search for solutions when needed
-    4. Implement fixes directly
-    5. Provide clear explanations of changes made
+    # Create the prompt template
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are an expert code reviewer and fixer. 
+        Your task is to:
+        1. Review code in the git repository
+        2. Identify issues and potential improvements
+        3. Search for solutions when needed
+        4. Implement fixes directly
+        5. Provide clear explanations of changes made
 
-    Follow these steps for each review:
-    1. Check git status and diff
-    2. Read relevant files
-    3. Analyze the code
-    4. Search for solutions if needed
-    5. Implement fixes
-    6. Verify changes
-    7. Provide a summary of actions taken""")
+        Follow these steps for each review:
+        1. Check git status and diff
+        2. Read relevant files
+        3. Analyze the code
+        4. Search for solutions if needed
+        5. Implement fixes
+        6. Verify changes
+        7. Provide a summary of actions taken"""),
+        MessagesPlaceholder(variable_name="chat_history"),
+        ("human", "{input}"),
+    ])
+
+    # Create the agent
+    agent = create_openai_functions_agent(llm, tools, prompt)
 
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
