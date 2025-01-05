@@ -6,6 +6,7 @@ from langchain.tools import Tool
 from langchain_community.tools.serpapi import SerpAPIWrapper
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder, HumanMessagePromptTemplate
+from typing import TypedDict, Sequence
 import subprocess
 import os
 
@@ -42,6 +43,9 @@ class GitTools:
             return "File updated successfully"
         except Exception as e:
             return f"Error writing file: {str(e)}"
+
+class AgentState(TypedDict):
+    messages: Sequence[BaseMessage]
 
 def create_code_review_agent(repo_path: str, openai_api_key: str, serpapi_api_key: str):
     # Initialize tools
@@ -110,34 +114,34 @@ def create_code_review_agent(repo_path: str, openai_api_key: str, serpapi_api_ke
 
     # Create the agent
     agent = create_openai_functions_agent(llm, tools, prompt)
-
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
     # Define the nodes for the graph
-    def analyze_request(state):
+    async def analyze_request(state: AgentState) -> AgentState:
         messages = state["messages"]
-        response = agent_executor.invoke({
+        response = await agent_executor.ainvoke({
             "input": messages[-1].content,
             "chat_history": messages[:-1],
             "agent_scratchpad": ""
         })
         return {
-            "messages": messages + [AIMessage(content=response["output"])]
+            "messages": list(messages) + [AIMessage(content=response["output"])]
         }
 
     # Create the graph
-    workflow = StateGraph(nodes=[analyze_request])
+    workflow = StateGraph(AgentState)
 
-    # Define the edges
+    # Add nodes
+    workflow.add_node("analyze_request", analyze_request)
+
+    # Add edges
     workflow.add_edge("analyze_request", "analyze_request")
 
     # Set the entry point
     workflow.set_entry_point("analyze_request")
 
     # Compile the graph
-    graph = workflow.compile()
-
-    return graph
+    return workflow.compile()
 
 def run_code_review(
     user_input: str,
@@ -160,9 +164,7 @@ def run_code_review(
     graph = create_code_review_agent(repo_path, openai_api_key, serpapi_api_key)
     
     # Initialize the state
-    state = {
-        "messages": [HumanMessage(content=user_input)]
-    }
+    state = AgentState(messages=[HumanMessage(content=user_input)])
     
     # Run the graph
     for output in graph.stream(state):
@@ -174,3 +176,26 @@ def run_code_review(
         state = output
     
     return [msg.content for msg in state["messages"]]
+
+if __name__ == "__main__":
+    import os
+    from dotenv import load_dotenv
+    
+    # Load environment variables from .env file
+    load_dotenv()
+    
+    # Get API keys from environment variables
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
+    
+    # Use current directory as repo path
+    REPO_PATH = os.getcwd()
+    
+    user_input = "Please review the code in code_review_agent.py and fix any issues"
+    
+    messages = run_code_review(
+        user_input=user_input,
+        repo_path=REPO_PATH,
+        openai_api_key=OPENAI_API_KEY,
+        serpapi_api_key=SERPAPI_API_KEY
+    )
