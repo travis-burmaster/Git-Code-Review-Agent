@@ -32,6 +32,11 @@ pip install -r requirements.txt
 
 3. Set up your environment variables:
 ```bash
+python -m venv venv
+source venv/bin/activate
+
+pip install langgraph langchain-openai langchain-community
+
 export OPENAI_API_KEY='your-openai-api-key'
 export SERPAPI_API_KEY='your-serpapi-api-key'
 ```
