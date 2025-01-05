@@ -3,11 +3,14 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import Graph, StateGraph
 from langchain_openai import ChatOpenAI
 from langchain.tools import Tool
-from langchain_community.tools.serpapi import SerpAPIWrapper
+from langchain_community.utilities import SerpAPIWrapper
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder, HumanMessagePromptTemplate
 import subprocess
 import os
+
+from dotenv import load_dotenv
+load_dotenv()
 
 class GitTools:
     def __init__(self, repo_path: str):
@@ -178,11 +181,11 @@ def run_code_review(
 # Example usage
 if __name__ == "__main__":
     # Replace with your actual API keys and repository path
-    REPO_PATH = "/path/to/your/repo"
-    OPENAI_API_KEY = "your-openai-api-key"
-    SERPAPI_API_KEY = "your-serpapi-api-key"
+    REPO_PATH = "./"
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
     
-    user_input = "Please review the code in src/main.py and fix any performance issues"
+    user_input = input("question for code:")
     
     messages = run_code_review(
         user_input=user_input,
