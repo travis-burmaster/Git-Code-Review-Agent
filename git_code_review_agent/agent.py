@@ -3,12 +3,13 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import Graph, StateGraph
 from langchain_openai import ChatOpenAI
 from langchain.tools import Tool
-from langchain_community.utilities import SerpAPIWrapper
+from langchain_community.tools.serpapi import SerpAPIWrapper
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder, HumanMessagePromptTemplate
 from typing import TypedDict, Sequence
 import subprocess
 import os
+import asyncio
 
 class GitTools:
     def __init__(self, repo_path: str):
@@ -117,9 +118,9 @@ def create_code_review_agent(repo_path: str, openai_api_key: str, serpapi_api_ke
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
     # Define the nodes for the graph
-    async def analyze_request(state: AgentState) -> AgentState:
+    def analyze_request(state: AgentState) -> AgentState:
         messages = state["messages"]
-        response = await agent_executor.ainvoke({
+        response = agent_executor.invoke({
             "input": messages[-1].content,
             "chat_history": messages[:-1],
             "agent_scratchpad": ""
@@ -143,14 +144,14 @@ def create_code_review_agent(repo_path: str, openai_api_key: str, serpapi_api_ke
     # Compile the graph
     return workflow.compile()
 
-def run_code_review(
+async def arun_code_review(
     user_input: str,
     repo_path: str,
     openai_api_key: str,
     serpapi_api_key: str
 ) -> List[str]:
     """
-    Run the code review process with the given user input.
+    Run the code review process with the given user input asynchronously.
     
     Args:
         user_input: The user's request or description of the issue
@@ -167,7 +168,7 @@ def run_code_review(
     state = AgentState(messages=[HumanMessage(content=user_input)])
     
     # Run the graph
-    for output in graph.stream(state):
+    async for output in graph.astream(state):
         current_messages = output["messages"]
         if len(current_messages) > len(state["messages"]):
             latest_message = current_messages[-1].content
@@ -176,6 +177,22 @@ def run_code_review(
         state = output
     
     return [msg.content for msg in state["messages"]]
+
+def run_code_review(
+    user_input: str,
+    repo_path: str,
+    openai_api_key: str,
+    serpapi_api_key: str
+) -> List[str]:
+    """
+    Synchronous wrapper for the async code review function.
+    """
+    return asyncio.run(arun_code_review(
+        user_input=user_input,
+        repo_path=repo_path,
+        openai_api_key=openai_api_key,
+        serpapi_api_key=serpapi_api_key
+    ))
 
 if __name__ == "__main__":
     import os
@@ -191,7 +208,7 @@ if __name__ == "__main__":
     # Use current directory as repo path
     REPO_PATH = os.getcwd()
     
-    user_input = "Please review the code in code_review_agent.py and fix any issues"
+    user_input = "Please review the code in git_code_review_agent/agent.py and fix any issues"
     
     messages = run_code_review(
         user_input=user_input,
