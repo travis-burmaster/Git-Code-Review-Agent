@@ -3,7 +3,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import Graph, StateGraph
 from langchain_openai import ChatOpenAI
 from langchain.tools import Tool
-from langchain_community.tools.serpapi import SerpAPIWrapper
+from langchain_community.utilities import SerpAPIWrapper
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder, HumanMessagePromptTemplate
 from typing import TypedDict, Sequence
